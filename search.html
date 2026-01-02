@@ -595,16 +595,10 @@
                     (videosData.items || []).map(v => v.snippet && v.snippet.categoryId).filter(Boolean)
                 ));
 
-                // 3) videoCategories.list for "genre" (category title)
+                // Genre handling (safe fallback)
                 let categoryMap = {};
-                if (categoryIds.length) {
-                    const catsUrl =
-                        `https://www.googleapis.com/youtube/v3/videoCategories?part=snippet&id=${encodeURIComponent(categoryIds.join(","))}&regionCode=US&key=${encodeURIComponent(YT_API_KEY)}`;
-                    const catsData = await fetchJSON(catsUrl);
-                    (catsData.items || []).forEach(c => {
-                        categoryMap[c.id] = c.snippet && c.snippet.title ? c.snippet.title : "";
-                    });
-                }
+                // If category API fails, genre will be shown as "Music"
+
 
                 // render cards
                 resultsEl.innerHTML = "";
@@ -614,7 +608,8 @@
                     const channel = v.snippet.channelTitle || "";
                     const thumb = (v.snippet.thumbnails && (v.snippet.thumbnails.medium || v.snippet.thumbnails.default || {}).url) || "";
                     const views = (v.statistics && v.statistics.viewCount) ? Number(v.statistics.viewCount).toLocaleString() : "N/A";
-                    const genre = categoryMap[v.snippet.categoryId] || "N/A";
+                    const genre = categoryMap[v.snippet.categoryId] || "Music";
+
 
                     const card = document.createElement("div");
                     card.className = "card";
