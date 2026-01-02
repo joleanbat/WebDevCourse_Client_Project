@@ -21,41 +21,52 @@
     </form>
 
     <p id="message" style="color:red;"></p>
+    <hr>
+
+    <p>אין לך חשבון?</p>
+    <button onclick="goToRegister()">מעבר להרשמה</button>
 
     <script>
-        document.getElementById("loginForm").addEventListener("submit", function (e) {
+        function goToRegister() {
+            window.location.href = "register.html";
+        }
+    </script>
+
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", async function (e) {
             e.preventDefault();
 
             const username = document.getElementById("username").value.trim();
             const password = document.getElementById("password").value;
+            const msg = document.getElementById("message");
+            msg.textContent = "";
 
-            // Load users from LocalStorage
-            const users = JSON.parse(localStorage.getItem("users")) || [];
+            try {
+                const res = await fetch("http://localhost:3000/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
 
-            // Check username + password match
-            const user = users.find(
-                u => u.username === username && u.password === password
-            );
+                const data = await res.json().catch(() => ({}));
 
-            if (!user) {
-                document.getElementById("message").textContent =
-                    "שם משתמש או סיסמה שגויים";
-                return;
+                if (!res.ok) {
+                    msg.textContent = data.message || "שגיאה בהתחברות";
+                    return;
+                }
+
+                // save current user in sessionStorage (same as before)
+                sessionStorage.setItem("currentUser", JSON.stringify(data.user));
+
+                // redirect
+                window.location.replace("search.html");
+
+            } catch (err) {
+                msg.textContent = "שגיאת רשת / שרת לא זמין";
             }
-
-            // Save current user in SESSION storage
-            const currentUser = {
-                username: user.username,
-                firstName: user.firstName,
-                imageUrl: user.imageUrl
-            };
-
-            sessionStorage.setItem("currentUser", JSON.stringify(currentUser));
-
-            // Redirect to SEARCH page (דרישה 4)
-            window.location.replace("search.html");
         });
     </script>
+
 
 </body>
 
