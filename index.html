@@ -4,17 +4,41 @@
 <head>
     <meta charset="UTF-8">
     <title>Main Page</title>
+
 </head>
 
 <body>
+    <!-- ===== USER BAR (TOP OF PAGE) ===== -->
+    <div id="userBar" style="
+  padding:10px 18px;
+  border-bottom:1px solid #ddd;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+">
 
+        <div style="display:flex; align-items:center; gap:10px;">
+            <img id="userImg" src="" alt="user photo"
+                style="width:45px;height:45px;border-radius:50%;object-fit:cover;border:1px solid #ccc;">
+
+            <div id="helloUser" style="font-weight:bold;">
+                שלום
+            </div>
+        </div>
+
+        <button id="logoutBtn">התנתקות</button>
+    </div>
+    <!-- ===== END USER BAR ===== -->
+
+
+    <!-- ===== PAGE CONTENT ===== -->
     <h1>Welcome to My Web Client Project</h1>
 
-    <p><strong>Student Name:</strong> Lara Abu Zed</p>
-    <p><strong>ID:</strong> 123456789</p>
+    <p><strong>Student Name:</strong> jolean batheesh</p>
+    <p><strong>ID:</strong> 213822919</p>
 
     <p>
-        <a href="https://github.com/YOUR_GITHUB_USERNAME" target="_blank">
+        <a href="https://github.com/joleanbat/WebDevCourse_Client_Project" target="_blank">
             My GitHub Profile
         </a>
     </p>
@@ -28,6 +52,38 @@
         <li><a href="search.html">Search</a></li>
         <li><a href="playlists.html">Playlists</a></li>
     </ul>
+    <!-- ===== END PAGE CONTENT ===== -->
+
+
+    <!-- ===== SCRIPT (BOTTOM OF PAGE) ===== -->
+    <script>
+        // Get user from sessionStorage
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
+
+        // If not logged in → go to login
+        if (!currentUser) {
+            window.location.replace("login.html");
+        } else {
+            // Show user name
+            const name = currentUser.firstName || currentUser.username || "משתמש";
+            document.getElementById("helloUser").textContent = `שלום ${name}`;
+
+            // Show user image
+            const userImg = document.getElementById("userImg");
+            if (currentUser.imageUrl) {
+                userImg.src = currentUser.imageUrl;
+            } else {
+                userImg.style.display = "none";
+            }
+        }
+
+        // Logout
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            sessionStorage.removeItem("currentUser");
+            window.location.replace("login.html");
+        });
+    </script>
+    <!-- ===== END SCRIPT ===== -->
 
 </body>
 

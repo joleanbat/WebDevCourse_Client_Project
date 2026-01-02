@@ -22,6 +22,26 @@
             justify-content: space-between;
         }
 
+        /* NEW: user area */
+        .userArea {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .userImg {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #ccc;
+        }
+
+        .logoutBtn {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
         .left {
             display: flex;
             flex-direction: column;
@@ -108,7 +128,6 @@
             overflow: hidden;
             line-height: 1.25;
             min-height: 2.5em;
-            /* ~2 lines */
             cursor: pointer;
         }
 
@@ -271,9 +290,14 @@
 <body>
 
     <header>
-        <div class="left">
-            <div class="welcome" id="welcomeMsg">שלום!</div>
-            <div class="muted">דף חיפוש (search.html)</div>
+        <!-- UPDATED HEADER: photo + name + logout -->
+        <div class="userArea">
+            <img id="userImg" class="userImg" src="" alt="User Photo">
+            <div class="left">
+                <div class="welcome" id="welcomeMsg">שלום!</div>
+                <div class="muted">דף חיפוש (search.html)</div>
+            </div>
+            <button id="logoutBtn" class="logoutBtn">התנתקות</button>
         </div>
 
         <nav>
@@ -356,22 +380,34 @@
 
     <script>
         /***********************
-         * 1) AUTH + WELCOME
+         * 1) AUTH + HEADER (NAME + PHOTO) + LOGOUT
          ***********************/
         const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
         if (!currentUser) {
-            // must be after login
             window.location.replace("login.html");
         }
 
         const welcomeMsg = document.getElementById("welcomeMsg");
-        const displayName = (currentUser && (currentUser.firstName || currentUser.username)) ? (currentUser.firstName || currentUser.username) : "משתמש";
+        const displayName = (currentUser.firstName || currentUser.username || "משתמש");
         welcomeMsg.textContent = `שלום ${displayName}`;
+
+        // show photo
+        const userImg = document.getElementById("userImg");
+        if (currentUser.imageUrl) {
+            userImg.src = currentUser.imageUrl;
+        } else {
+            userImg.style.display = "none";
+        }
+
+        // logout
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            sessionStorage.removeItem("currentUser");
+            window.location.replace("login.html");
+        });
 
         /***********************
          * 2) YOUTUBE API SETUP
          ***********************/
-        // IMPORTANT: Put your YouTube Data API key here
         const YT_API_KEY = "AIzaSyAESAiEPetMDTzPEJmH--nqS2T6tRH4ptY";
 
         // helpers
@@ -447,7 +483,7 @@
         const addToExistingBtn = document.getElementById("addToExistingBtn");
         const createAndAddBtn = document.getElementById("createAndAddBtn");
 
-        let pendingVideo = null; // {videoId,title,thumb,channel,views,genre}
+        let pendingVideo = null;
 
         function refreshPlaylistDropdown() {
             const pls = getPlaylists();
@@ -494,7 +530,6 @@
                 pls.push(p);
             }
 
-            // prevent duplicates
             const already = (p.items || []).some(it => it.videoId === pendingVideo.videoId);
             if (!already) {
                 p.items.push(pendingVideo);
@@ -505,7 +540,6 @@
             }
 
             closeAddModal();
-            // refresh marks on cards
             markCards();
         }
 
@@ -537,40 +571,32 @@
             const q = qInput.value.trim();
             if (!q) return;
 
-            // Save search in querystring
             const url = new URL(window.location.href);
             url.searchParams.set("q", q);
             history.pushState({}, "", url);
 
-            // call YT API
             await fetchAndRender(q);
         }
 
-        // If coming from outside / refresh, auto-search by querystring
         if (initialQ) {
             fetchAndRender(initialQ);
         }
 
         async function fetchJSON(url) {
             const res = await fetch(url);
-            if (!res.ok) throw new Error("API Error");
-            return res.json();
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const msg = (data && data.error && data.error.message) ? data.error.message : "API Error";
+                throw new Error(msg);
+            }
+            return data;
         }
 
         async function fetchAndRender(query) {
             resultsEl.innerHTML = "טוען תוצאות...";
 
             try {
-                if (YT_API_KEY === "YOUR_YOUTUBE_DATA_API_KEY") {
-                    resultsEl.innerHTML = `
-          <div style="color:#b00020;">
-            חסר מפתח API של YouTube Data API.<br>
-            שימי את המפתח שלך במשתנה <b>YT_API_KEY</b> בתוך הקובץ.
-          </div>`;
-                    return;
-                }
-
-                // 1) search.list to get video IDs
+                // 1) search.list
                 const searchUrl =
                     `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${encodeURIComponent(YT_API_KEY)}`;
 
@@ -584,7 +610,7 @@
                     return;
                 }
 
-                // 2) videos.list for stats + snippet + category
+                // 2) videos.list
                 const videosUrl =
                     `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${encodeURIComponent(videoIds.join(","))}&key=${encodeURIComponent(YT_API_KEY)}`;
 
@@ -595,10 +621,20 @@
                     (videosData.items || []).map(v => v.snippet && v.snippet.categoryId).filter(Boolean)
                 ));
 
-                // Genre handling (safe fallback)
+                // 3) categories -> genre  (FIXED: no regionCode with id)
                 let categoryMap = {};
-                // If category API fails, genre will be shown as "Music"
-
+                if (categoryIds.length) {
+                    try {
+                        const catsUrl =
+                            `https://www.googleapis.com/youtube/v3/videoCategories?part=snippet&id=${encodeURIComponent(categoryIds.join(","))}&key=${encodeURIComponent(YT_API_KEY)}`;
+                        const catsData = await fetchJSON(catsUrl);
+                        (catsData.items || []).forEach(c => {
+                            categoryMap[c.id] = (c.snippet && c.snippet.title) ? c.snippet.title : "";
+                        });
+                    } catch (e) {
+                        // ignore category failure
+                    }
+                }
 
                 // render cards
                 resultsEl.innerHTML = "";
@@ -609,7 +645,6 @@
                     const thumb = (v.snippet.thumbnails && (v.snippet.thumbnails.medium || v.snippet.thumbnails.default || {}).url) || "";
                     const views = (v.statistics && v.statistics.viewCount) ? Number(v.statistics.viewCount).toLocaleString() : "N/A";
                     const genre = categoryMap[v.snippet.categoryId] || "Music";
-
 
                     const card = document.createElement("div");
                     card.className = "card";
@@ -630,21 +665,20 @@
                     const body = document.createElement("div");
                     body.className = "card-body";
 
-                    // Title with TOOLTIP (full name)
                     const t = document.createElement("div");
                     t.className = "title";
                     t.textContent = title;
-                    t.title = title; // TOOLTIP requirement
+                    t.title = title;
                     t.addEventListener("click", () => openVideoModal(title, videoId));
                     body.appendChild(t);
 
                     const meta = document.createElement("div");
                     meta.className = "meta";
                     meta.innerHTML = `
-          <span><b>משתמש/ערוץ:</b> ${escapeHtml(channel)}</span>
-          <span><b>כמות צפיות:</b> ${escapeHtml(String(views))}</span>
-          <span><b>ז׳אנר:</b> ${escapeHtml(genre)}</span>
-        `;
+                      <span><b>משתמש/ערוץ:</b> ${escapeHtml(channel)}</span>
+                      <span><b>כמות צפיות:</b> ${escapeHtml(String(views))}</span>
+                      <span><b>ז׳אנר:</b> ${escapeHtml(genre)}</span>
+                    `;
                     body.appendChild(meta);
 
                     const actions = document.createElement("div");
@@ -654,7 +688,6 @@
                     favBtn.className = "favBtn";
                     favBtn.textContent = "הוספה למועדפים";
                     favBtn.addEventListener("click", () => {
-                        // open Dialog/Modal/Prompt (we use MODAL)
                         const videoObj = { videoId, title, thumb, channel, views, genre };
                         openAddModal(videoObj);
                     });
@@ -666,11 +699,10 @@
                     resultsEl.appendChild(card);
                 });
 
-                // mark cards that already exist in ANY playlist (✓ + button color)
                 markCards();
 
             } catch (err) {
-                resultsEl.innerHTML = `<div style="color:#b00020;">שגיאה בקריאת API / רשת. בדקי את ה-API KEY ואת ההרשאות.</div>`;
+                resultsEl.innerHTML = `<div style="color:#b00020;">שגיאה בקריאת API: ${escapeHtml(err.message)}</div>`;
             }
         }
 
@@ -693,8 +725,9 @@
             });
         }
 
-        function escapeHtml(str) {
-            return str
+        // FIXED: safe for any value (not only string)
+        function escapeHtml(value) {
+            return String(value ?? "")
                 .replaceAll("&", "&amp;")
                 .replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;")

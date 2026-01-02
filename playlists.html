@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <title>Playlists</title>
 
     <style>
@@ -21,8 +22,28 @@
             gap: 12px;
         }
 
+        /* NEW: user area */
+        .userArea {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .userImg {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #ccc;
+        }
+
         .welcome {
             font-weight: 700;
+        }
+
+        .logoutBtn {
+            padding: 8px 12px;
+            cursor: pointer;
         }
 
         nav a {
@@ -276,7 +297,7 @@
             cursor: pointer;
         }
 
-        /* Prompt-like modal for new playlist */
+        /* Prompt-like modal for new/rename playlist */
         .promptOverlay {
             position: fixed;
             inset: 0;
@@ -320,8 +341,15 @@
 </head>
 
 <body>
+
     <header>
-        <div class="welcome" id="welcomeMsg">שלום!</div>
+        <!-- NEW: photo + name -->
+        <div class="userArea">
+            <img id="userImg" class="userImg" src="" alt="User Photo">
+            <div class="welcome" id="welcomeMsg">שלום!</div>
+            <button id="logoutBtn" class="logoutBtn">התנתקות</button>
+        </div>
+
         <nav>
             <a href="index.html">בית</a>
             <a href="search.html">חיפוש</a>
@@ -347,6 +375,14 @@
                 <b>נגן PLAYLIST</b>
                 <button id="playPlaylistBtn">נגן את הפלייליסט</button>
                 <div class="notice">* ייפתח ניגון של השיר הראשון בפלייליסט הנבחר</div>
+            </div>
+
+            <!-- Manage playlist (rename/delete) -->
+            <div class="sidebarRow" style="margin-top:14px;">
+                <b>ניהול פלייליסט</b>
+                <button id="renamePlaylistBtn">שינוי שם פלייליסט</button>
+                <button id="deletePlaylistBtn">מחיקת פלייליסט</button>
+                <div class="notice">* פעולות אלו פועלות על הפלייליסט הנבחר</div>
             </div>
         </aside>
 
@@ -388,14 +424,14 @@
         </div>
     </div>
 
-    <!-- Prompt modal for new playlist -->
+    <!-- Prompt modal (used for Create and Rename) -->
     <div class="promptOverlay" id="promptOverlay">
         <div class="promptBox">
-            <h4>יצירת פלייליסט חדש</h4>
+            <h4 id="promptTitle">יצירת פלייליסט חדש</h4>
             <input type="text" id="promptName" placeholder="שם פלייליסט..." />
             <div class="promptActions">
                 <button id="promptCancel">ביטול</button>
-                <button id="promptOk">צור</button>
+                <button id="promptOk">שמור</button>
             </div>
             <div class="notice" id="promptMsg" style="color:#b00020;"></div>
         </div>
@@ -410,14 +446,29 @@
 
     <script>
         /***********************
-         * AUTH + WELCOME
+         * AUTH + WELCOME + PHOTO
          ***********************/
         const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
         if (!currentUser) {
             window.location.replace("login.html");
         }
+
         const displayName = (currentUser.firstName || currentUser.username || "משתמש");
         document.getElementById("welcomeMsg").textContent = `שלום ${displayName}`;
+
+        // show photo if exists
+        const userImg = document.getElementById("userImg");
+        if (currentUser.imageUrl) {
+            userImg.src = currentUser.imageUrl;
+        } else {
+            userImg.style.display = "none";
+        }
+
+        // logout
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            sessionStorage.removeItem("currentUser");
+            window.location.replace("login.html");
+        });
 
         /***********************
          * STORAGE: playlists per user
@@ -433,12 +484,10 @@
         }
 
         /***********************
-         * QUERYSTRING: playlist id/name
-         * requirement says: receive playlist ID in querystring,
-         * if none -> load first playlist.
+         * QUERYSTRING: playlist name as ID (pl=...)
          ***********************/
         const urlParams = new URLSearchParams(window.location.search);
-        let selectedPlaylistName = urlParams.get("pl") || ""; // we use name as ID in this project
+        let selectedPlaylistName = urlParams.get("pl") || "";
 
         /***********************
          * UI refs
@@ -449,6 +498,9 @@
         const sortSelect = document.getElementById("sortSelect");
         const mainHint = document.getElementById("mainHint");
         const playPlaylistBtn = document.getElementById("playPlaylistBtn");
+
+        const renamePlaylistBtn = document.getElementById("renamePlaylistBtn");
+        const deletePlaylistBtn = document.getElementById("deletePlaylistBtn");
 
         /***********************
          * VIDEO MODAL
@@ -483,43 +535,105 @@
         }
 
         /***********************
-         * PROMPT (new playlist)
+         * PROMPT MODAL (Create + Rename)
          ***********************/
         const promptOverlay = document.getElementById("promptOverlay");
+        const promptTitle = document.getElementById("promptTitle");
         const promptName = document.getElementById("promptName");
         const promptMsg = document.getElementById("promptMsg");
-        document.getElementById("newPlaylistBtn").addEventListener("click", () => {
+        const promptCancel = document.getElementById("promptCancel");
+        const promptOk = document.getElementById("promptOk");
+
+        let promptMode = "create";
+        let renameFrom = "";
+
+        function openPrompt(mode) {
+            promptMode = mode;
+            promptMsg.textContent = "";
+
+            if (mode === "create") {
+                promptTitle.textContent = "יצירת פלייליסט חדש";
+                promptOk.textContent = "צור";
+                promptName.value = "";
+                promptName.placeholder = "שם פלייליסט...";
+            } else {
+                promptTitle.textContent = "שינוי שם פלייליסט";
+                promptOk.textContent = "שמור";
+                promptName.value = selectedPlaylistName;
+                promptName.placeholder = "שם חדש...";
+                renameFrom = selectedPlaylistName;
+            }
+
+            promptOverlay.style.display = "flex";
+            setTimeout(() => promptName.focus(), 0);
+        }
+
+        function closePrompt() {
+            promptOverlay.style.display = "none";
             promptMsg.textContent = "";
             promptName.value = "";
-            promptOverlay.style.display = "flex";
-            promptName.focus();
-        });
-        document.getElementById("promptCancel").addEventListener("click", () => promptOverlay.style.display = "none");
-        promptOverlay.addEventListener("click", (e) => { if (e.target === promptOverlay) promptOverlay.style.display = "none"; });
+        }
 
-        document.getElementById("promptOk").addEventListener("click", () => {
+        document.getElementById("newPlaylistBtn").addEventListener("click", () => openPrompt("create"));
+        promptCancel.addEventListener("click", closePrompt);
+        promptOverlay.addEventListener("click", (e) => { if (e.target === promptOverlay) closePrompt(); });
+
+        promptOk.addEventListener("click", () => {
             const name = promptName.value.trim();
             if (!name) {
                 promptMsg.textContent = "יש להזין שם לפלייליסט.";
                 return;
             }
+
             let pls = getPlaylists();
-            const exists = pls.some(p => p.name === name);
-            if (exists) {
-                promptMsg.textContent = "פלייליסט בשם הזה כבר קיים.";
+
+            if (promptMode === "create") {
+                const exists = pls.some(p => p.name === name);
+                if (exists) {
+                    promptMsg.textContent = "פלייליסט בשם הזה כבר קיים.";
+                    return;
+                }
+                pls.push({ name, items: [] });
+                savePlaylists(pls);
+                showToast("פלייליסט חדש נוצר!");
+                closePrompt();
+                selectPlaylist(name);
                 return;
             }
-            pls.push({ name, items: [] });
-            savePlaylists(pls);
-            showToast("פלייליסט חדש נוצר!");
-            promptOverlay.style.display = "none";
 
-            // select new playlist
-            selectPlaylist(name);
+            // rename mode
+            if (!selectedPlaylistName) {
+                promptMsg.textContent = "בחר פלייליסט מהרשימה.";
+                return;
+            }
+            if (name === renameFrom) {
+                closePrompt();
+                return;
+            }
+            const existsRename = pls.some(p => p.name === name);
+            if (existsRename) {
+                promptMsg.textContent = "כבר קיים פלייליסט בשם הזה.";
+                return;
+            }
+
+            const p = pls.find(p => p.name === renameFrom);
+            if (!p) {
+                promptMsg.textContent = "פלייליסט לא נמצא.";
+                return;
+            }
+
+            p.name = name;
+            savePlaylists(pls);
+
+            selectedPlaylistName = name;
+            syncQuerystring();
+            showToast("שם הפלייליסט עודכן!");
+            closePrompt();
+            renderSidebar();
         });
 
         /***********************
-         * RENDER SIDEBAR LIST
+         * SIDEBAR LIST
          ***********************/
         function renderSidebar() {
             const pls = getPlaylists();
@@ -535,12 +649,10 @@
                 return;
             }
 
-            // if no querystring playlist -> first playlist
             if (!selectedPlaylistName) {
                 selectedPlaylistName = pls[0].name;
                 syncQuerystring();
             } else {
-                // if querystring playlist not found -> first playlist
                 const found = pls.some(p => p.name === selectedPlaylistName);
                 if (!found) {
                     selectedPlaylistName = pls[0].name;
@@ -572,31 +684,23 @@
 
         function syncQuerystring() {
             const url = new URL(window.location.href);
-            if (selectedPlaylistName) {
-                url.searchParams.set("pl", selectedPlaylistName);
-            } else {
-                url.searchParams.delete("pl");
-            }
+            if (selectedPlaylistName) url.searchParams.set("pl", selectedPlaylistName);
+            else url.searchParams.delete("pl");
             history.replaceState({}, "", url);
         }
 
         function selectPlaylist(name) {
             selectedPlaylistName = name;
             syncQuerystring();
-            renderSidebar(); // rerender to set active state
+            renderSidebar();
         }
 
         /***********************
-         * MAIN CONTENT: songs in selected playlist
-         * - if not selected -> show "בחר פלייליסט מהרשימה"
-         * - filter by input
-         * - sort A-Z or Z-A
-         * - delete video or delete playlist
+         * MAIN CONTENT
          ***********************/
         function renderMain() {
             const pls = getPlaylists();
             const playlist = pls.find(p => p.name === selectedPlaylistName);
-
             cardsEl.innerHTML = "";
 
             if (!playlist) {
@@ -607,12 +711,10 @@
             const filterText = filterInput.value.trim().toLowerCase();
             let items = (playlist.items || []).slice();
 
-            // internal filter by video title
             if (filterText) {
                 items = items.filter(it => (it.title || "").toLowerCase().includes(filterText));
             }
 
-            // sorting
             const sortMode = sortSelect.value;
             items.sort((a, b) => {
                 const ta = (a.title || "").toLowerCase();
@@ -646,17 +748,17 @@
                 const title = document.createElement("div");
                 title.className = "title";
                 title.textContent = it.title || "";
-                title.title = it.title || ""; // tooltip
+                title.title = it.title || "";
                 title.addEventListener("click", () => openVideoModal(it.title || "ניגון", it.videoId));
                 body.appendChild(title);
 
                 const meta = document.createElement("div");
                 meta.className = "meta";
                 meta.innerHTML = `
-        <span><b>משתמש/ערוץ:</b> ${escapeHtml(it.channel || "")}</span>
-        <span><b>כמות צפיות:</b> ${escapeHtml(String(it.views ?? ""))}</span>
-        <span><b>ז׳אנר:</b> ${escapeHtml(it.genre || "")}</span>
-      `;
+          <span><b>משתמש/ערוץ:</b> ${escapeHtml(it.channel || "")}</span>
+          <span><b>כמות צפיות:</b> ${escapeHtml(String(it.views ?? ""))}</span>
+          <span><b>ז׳אנר:</b> ${escapeHtml(it.genre || "")}</span>
+        `;
                 body.appendChild(meta);
 
                 const actions = document.createElement("div");
@@ -668,16 +770,9 @@
                     deleteVideoFromPlaylist(playlist.name, it.videoId);
                 });
 
-                const removePlaylistBtn = document.createElement("button");
-                removePlaylistBtn.textContent = "מחיקת רשימה שלמה";
-                removePlaylistBtn.addEventListener("click", () => {
-                    deletePlaylist(playlist.name);
-                });
-
                 actions.appendChild(removeVideoBtn);
-                actions.appendChild(removePlaylistBtn);
-
                 body.appendChild(actions);
+
                 card.appendChild(body);
                 cardsEl.appendChild(card);
             });
@@ -697,27 +792,42 @@
             renderSidebar();
         }
 
-        function deletePlaylist(plName) {
-            const ok = confirm("למחוק את כל הרשימה?");
+        /***********************
+         * DELETE + RENAME PLAYLIST
+         ***********************/
+        deletePlaylistBtn.addEventListener("click", () => {
+            if (!selectedPlaylistName) {
+                alert("בחר פלייליסט מהרשימה");
+                return;
+            }
+            const ok = confirm("למחוק את הפלייליסט הנבחר?");
             if (!ok) return;
 
             let pls = getPlaylists();
-            pls = pls.filter(p => p.name !== plName);
+            pls = pls.filter(p => p.name !== selectedPlaylistName);
             savePlaylists(pls);
 
-            showToast("הרשימה נמחקה");
+            showToast("הפלייליסט נמחק!");
             selectedPlaylistName = "";
             renderSidebar();
-        }
+        });
+
+        renamePlaylistBtn.addEventListener("click", () => {
+            if (!selectedPlaylistName) {
+                alert("בחר פלייליסט מהרשימה");
+                return;
+            }
+            openPrompt("rename");
+        });
 
         /***********************
-         * PLAY PLAYLIST (start from first item)
+         * PLAY PLAYLIST (first item)
          ***********************/
         playPlaylistBtn.addEventListener("click", () => {
             const pls = getPlaylists();
             const p = pls.find(x => x.name === selectedPlaylistName);
             if (!p) {
-                alert('בחר פלייליסט מהרשימה');
+                alert("בחר פלייליסט מהרשימה");
                 return;
             }
             const first = (p.items || [])[0];
