@@ -2,7 +2,7 @@
 <html lang="he">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Register</title>
 </head>
 
@@ -30,19 +30,19 @@
     </form>
 
     <p id="message" style="color:red;"></p>
+
     <hr>
-
     <p>כבר יש לך חשבון?</p>
-    <button onclick="goToLogin()">חזרה להתחברות</button>
+    <button id="goLoginBtn" type="button">חזרה להתחברות</button>
 
     <script>
-        function goToLogin() {
+        // button to login
+        document.getElementById("goLoginBtn").addEventListener("click", () => {
             window.location.href = "login.html";
-        }
-    </script>
+        });
 
-    <script>
-        document.getElementById("registerForm").addEventListener("submit", async function (event) {
+        // register with localStorage users
+        document.getElementById("registerForm").addEventListener("submit", function (event) {
             event.preventDefault();
 
             const username = document.getElementById("username").value.trim();
@@ -51,32 +51,39 @@
             const password = document.getElementById("password").value;
             const confirmPassword = document.getElementById("confirmPassword").value;
             const message = document.getElementById("message");
-
             message.textContent = "";
 
-            try {
-                const res = await fetch("http://localhost:3000/api/register", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, firstName, imageUrl, password, confirmPassword })
-                });
+            let users = JSON.parse(localStorage.getItem("users") || "[]");
 
-                const data = await res.json().catch(() => ({}));
-
-                if (!res.ok) {
-                    message.textContent = data.message || "שגיאה בהרשמה";
-                    return;
-                }
-
-                alert("ההרשמה בוצעה בהצלחה!");
-                window.location.href = "login.html";
-
-            } catch (err) {
-                message.textContent = "שגיאת רשת / שרת לא זמין";
+            if (users.some(u => u.username === username)) {
+                message.textContent = "שם המשתמש כבר קיים במערכת";
+                return;
             }
+
+            if (password.length < 6) {
+                message.textContent = "הסיסמה חייבת להכיל לפחות 6 תווים";
+                return;
+            }
+
+            const hasLetter = /[a-zA-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            if (!hasLetter || !hasNumber) {
+                message.textContent = "הסיסמה חייבת להכיל לפחות אות אחת ומספר אחד";
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                message.textContent = "הסיסמאות אינן זהות";
+                return;
+            }
+
+            users.push({ username, firstName, imageUrl, password });
+            localStorage.setItem("users", JSON.stringify(users));
+
+            alert("ההרשמה בוצעה בהצלחה!");
+            window.location.replace("login.html");
         });
     </script>
-
 
 </body>
 

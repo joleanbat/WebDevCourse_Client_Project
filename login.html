@@ -2,7 +2,7 @@
 <html lang="he">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Login</title>
 </head>
 
@@ -21,52 +21,48 @@
     </form>
 
     <p id="message" style="color:red;"></p>
+
     <hr>
-
     <p>אין לך חשבון?</p>
-    <button onclick="goToRegister()">מעבר להרשמה</button>
+    <button id="goRegisterBtn" type="button">מעבר להרשמה</button>
 
     <script>
-        function goToRegister() {
+        // button to register
+        document.getElementById("goRegisterBtn").addEventListener("click", () => {
             window.location.href = "register.html";
-        }
-    </script>
+        });
 
-    <script>
-        document.getElementById("loginForm").addEventListener("submit", async function (e) {
+        // login with localStorage users
+        document.getElementById("loginForm").addEventListener("submit", function (e) {
             e.preventDefault();
 
             const username = document.getElementById("username").value.trim();
             const password = document.getElementById("password").value;
-            const msg = document.getElementById("message");
-            msg.textContent = "";
+            const message = document.getElementById("message");
+            message.textContent = "";
 
-            try {
-                const res = await fetch("http://localhost:3000/api/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, password })
-                });
+            const users = JSON.parse(localStorage.getItem("users") || "[]");
 
-                const data = await res.json().catch(() => ({}));
+            const user = users.find(u => u.username === username && u.password === password);
 
-                if (!res.ok) {
-                    msg.textContent = data.message || "שגיאה בהתחברות";
-                    return;
-                }
-
-                // save current user in sessionStorage (same as before)
-                sessionStorage.setItem("currentUser", JSON.stringify(data.user));
-
-                // redirect
-                window.location.replace("search.html");
-
-            } catch (err) {
-                msg.textContent = "שגיאת רשת / שרת לא זמין";
+            if (!user) {
+                message.textContent = "שם משתמש או סיסמה שגויים";
+                return;
             }
+
+            // save current user in sessionStorage
+            const currentUser = {
+                username: user.username,
+                firstName: user.firstName,
+                imageUrl: user.imageUrl
+            };
+
+            sessionStorage.setItem("currentUser", JSON.stringify(currentUser));
+
+            // go to search
+            window.location.replace("search.html");
         });
     </script>
-
 
 </body>
 
