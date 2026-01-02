@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="he">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+</head>
+
+<body>
+
+    <h2>הרשמה</h2>
+
+    <form id="registerForm">
+        <label>שם משתמש:</label><br>
+        <input type="text" id="username" required><br><br>
+
+        <label>שם פרטי:</label><br>
+        <input type="text" id="firstName" required><br><br>
+
+        <label>תמונה (URL):</label><br>
+        <input type="url" id="imageUrl" required><br><br>
+
+        <label>סיסמה:</label><br>
+        <input type="password" id="password" required><br><br>
+
+        <label>אימות סיסמה:</label><br>
+        <input type="password" id="confirmPassword" required><br><br>
+
+        <button type="submit">הרשמה</button>
+    </form>
+
+    <p id="message" style="color:red;"></p>
+
+    <script>
+        document.getElementById("registerForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const username = document.getElementById("username").value.trim();
+            const firstName = document.getElementById("firstName").value.trim();
+            const imageUrl = document.getElementById("imageUrl").value.trim();
+            const password = document.getElementById("password").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
+            const message = document.getElementById("message");
+
+            // Load users from LocalStorage
+            let users = JSON.parse(localStorage.getItem("users")) || [];
+
+            // Check if username already exists
+            const userExists = users.some(user => user.username === username);
+            if (userExists) {
+                message.textContent = "שם המשתמש כבר קיים במערכת";
+                return;
+            }
+
+            // Password length check
+            if (password.length < 6) {
+                message.textContent = "הסיסמה חייבת להכיל לפחות 6 תווים";
+                return;
+            }
+
+            // Password must contain at least one letter and one number
+            const hasLetter = /[a-zA-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            if (!hasLetter || !hasNumber) {
+                message.textContent = "הסיסמה חייבת להכיל לפחות אות אחת ומספר אחד";
+                return;
+            }
+
+            // Confirm password check
+            if (password !== confirmPassword) {
+                message.textContent = "הסיסמאות אינן זהות";
+                return;
+            }
+
+            // Save new user
+            const newUser = {
+                username,
+                firstName,
+                imageUrl,
+                password
+            };
+
+            users.push(newUser);
+            localStorage.setItem("users", JSON.stringify(users));
+
+            alert("ההרשמה בוצעה בהצלחה!");
+            window.location.href = "login.html";
+        });
+    </script>
+
+</body>
+
+</html>

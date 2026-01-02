@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="he">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playlists</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            padding: 14px 18px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .welcome {
+            font-weight: 700;
+        }
+
+        nav a {
+            margin-inline-start: 10px;
+            text-decoration: none;
+            color: #0b57d0;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        /* 2 columns via Grid */
+        .layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* Sidebar */
+        aside {
+            border-inline-end: 1px solid #eee;
+            padding: 16px;
+            background: #fafafa;
+        }
+
+        aside h3 {
+            margin: 0 0 10px;
+        }
+
+        .sidebarRow {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebarRow button {
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+
+        .plList {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .plItem {
+            padding: 10px 10px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            background: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .plItem.active {
+            border-color: #0b57d0;
+        }
+
+        .countBadge {
+            font-size: 12px;
+            color: #444;
+            background: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+
+        /* Main content */
+        main {
+            padding: 16px;
+        }
+
+        .topBar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        input[type="text"],
+        select {
+            padding: 10px;
+            min-width: 220px;
+        }
+
+        .notice {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .thumb {
+            width: 100%;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            background: #f3f3f3;
+            cursor: pointer;
+        }
+
+        .cardBody {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .title {
+            font-weight: 700;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 2.5em;
+            line-height: 1.25;
+            cursor: pointer;
+        }
+
+        .meta {
+            font-size: 13px;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .meta span {
+            color: #444;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .actions button {
+            padding: 10px 12px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        /* Modal (video) */
+        .modalOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 9999;
+        }
+
+        .modal {
+            width: min(900px, 96vw);
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+        }
+
+        .modalHeader {
+            padding: 12px 14px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .modalHeader h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .modalBody {
+            padding: 12px;
+        }
+
+        .playerWrap {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .closeBtn {
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+
+        /* Toast/Notification */
+        .toast {
+            position: fixed;
+            left: 16px;
+            bottom: 16px;
+            background: #222;
+            color: #fff;
+            padding: 12px 14px;
+            border-radius: 10px;
+            display: none;
+            gap: 10px;
+            align-items: center;
+            z-index: 99999;
+            max-width: min(520px, 92vw);
+        }
+
+        .toast a {
+            color: #9ad0ff;
+        }
+
+        .toast button {
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+        /* Prompt-like modal for new playlist */
+        .promptOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 9998;
+        }
+
+        .promptBox {
+            width: min(520px, 95vw);
+            background: #fff;
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+        }
+
+        .promptBox h4 {
+            margin: 0 0 10px;
+        }
+
+        .promptBox input {
+            width: 100%;
+            padding: 10px;
+        }
+
+        .promptActions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .promptActions button {
+            padding: 10px 12px;
+            cursor: pointer;
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="welcome" id="welcomeMsg">שלום!</div>
+        <nav>
+            <a href="index.html">בית</a>
+            <a href="search.html">חיפוש</a>
+            <a href="playlists.html">פלייליסטים</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside>
+            <h3>הספריה שלי</h3>
+
+            <div class="sidebarRow">
+                <button id="newPlaylistBtn">+ פלייליסט חדש</button>
+            </div>
+
+            <div class="sidebarRow" style="margin-top:14px;">
+                <b>רשימה:</b>
+                <div class="plList" id="plList"></div>
+            </div>
+
+            <div class="sidebarRow" style="margin-top:14px;">
+                <b>נגן PLAYLIST</b>
+                <button id="playPlaylistBtn">נגן את הפלייליסט</button>
+                <div class="notice">* ייפתח ניגון של השיר הראשון בפלייליסט הנבחר</div>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main>
+            <div class="topBar">
+                <div>
+                    <h2 style="margin:0;">תוכן הפלייליסט</h2>
+                    <div class="notice" id="mainHint">בחר פלייליסט מהרשימה.</div>
+                </div>
+
+                <div class="controls">
+                    <input type="text" id="filterInput" placeholder="חיפוש פנימי (שם סרטון)..." />
+                    <select id="sortSelect">
+                        <option value="az">מיון: א-ב</option>
+                        <option value="za">מיון: ב-א</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="cards" id="cards"></div>
+        </main>
+    </div>
+
+    <!-- Video Modal -->
+    <div class="modalOverlay" id="videoOverlay">
+        <div class="modal">
+            <div class="modalHeader">
+                <h3 id="videoTitle">ניגון</h3>
+                <button class="closeBtn" id="closeVideo">סגור</button>
+            </div>
+            <div class="modalBody">
+                <div class="playerWrap">
+                    <iframe id="player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt modal for new playlist -->
+    <div class="promptOverlay" id="promptOverlay">
+        <div class="promptBox">
+            <h4>יצירת פלייליסט חדש</h4>
+            <input type="text" id="promptName" placeholder="שם פלייליסט..." />
+            <div class="promptActions">
+                <button id="promptCancel">ביטול</button>
+                <button id="promptOk">צור</button>
+            </div>
+            <div class="notice" id="promptMsg" style="color:#b00020;"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div id="toastText">נשמר!</div>
+        <a href="search.html">חזרה לחיפוש</a>
+        <button id="toastClose">X</button>
+    </div>
+
+    <script>
+        /***********************
+         * AUTH + WELCOME
+         ***********************/
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
+        if (!currentUser) {
+            window.location.replace("login.html");
+        }
+        const displayName = (currentUser.firstName || currentUser.username || "משתמש");
+        document.getElementById("welcomeMsg").textContent = `שלום ${displayName}`;
+
+        /***********************
+         * STORAGE: playlists per user
+         ***********************/
+        function playlistsKey() {
+            return `playlists_${currentUser.username}`;
+        }
+        function getPlaylists() {
+            return JSON.parse(localStorage.getItem(playlistsKey()) || "[]");
+        }
+        function savePlaylists(list) {
+            localStorage.setItem(playlistsKey(), JSON.stringify(list));
+        }
+
+        /***********************
+         * QUERYSTRING: playlist id/name
+         * requirement says: receive playlist ID in querystring,
+         * if none -> load first playlist.
+         ***********************/
+        const urlParams = new URLSearchParams(window.location.search);
+        let selectedPlaylistName = urlParams.get("pl") || ""; // we use name as ID in this project
+
+        /***********************
+         * UI refs
+         ***********************/
+        const plListEl = document.getElementById("plList");
+        const cardsEl = document.getElementById("cards");
+        const filterInput = document.getElementById("filterInput");
+        const sortSelect = document.getElementById("sortSelect");
+        const mainHint = document.getElementById("mainHint");
+        const playPlaylistBtn = document.getElementById("playPlaylistBtn");
+
+        /***********************
+         * VIDEO MODAL
+         ***********************/
+        const videoOverlay = document.getElementById("videoOverlay");
+        const closeVideo = document.getElementById("closeVideo");
+        const player = document.getElementById("player");
+        const videoTitleEl = document.getElementById("videoTitle");
+
+        function openVideoModal(title, videoId) {
+            videoTitleEl.textContent = title;
+            player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            videoOverlay.style.display = "flex";
+        }
+        function closeVideoModal() {
+            player.src = "";
+            videoOverlay.style.display = "none";
+        }
+        closeVideo.addEventListener("click", closeVideoModal);
+        videoOverlay.addEventListener("click", (e) => { if (e.target === videoOverlay) closeVideoModal(); });
+
+        /***********************
+         * TOAST
+         ***********************/
+        const toast = document.getElementById("toast");
+        const toastText = document.getElementById("toastText");
+        document.getElementById("toastClose").addEventListener("click", () => toast.style.display = "none");
+        function showToast(text) {
+            toastText.textContent = text;
+            toast.style.display = "flex";
+            setTimeout(() => { toast.style.display = "none"; }, 4500);
+        }
+
+        /***********************
+         * PROMPT (new playlist)
+         ***********************/
+        const promptOverlay = document.getElementById("promptOverlay");
+        const promptName = document.getElementById("promptName");
+        const promptMsg = document.getElementById("promptMsg");
+        document.getElementById("newPlaylistBtn").addEventListener("click", () => {
+            promptMsg.textContent = "";
+            promptName.value = "";
+            promptOverlay.style.display = "flex";
+            promptName.focus();
+        });
+        document.getElementById("promptCancel").addEventListener("click", () => promptOverlay.style.display = "none");
+        promptOverlay.addEventListener("click", (e) => { if (e.target === promptOverlay) promptOverlay.style.display = "none"; });
+
+        document.getElementById("promptOk").addEventListener("click", () => {
+            const name = promptName.value.trim();
+            if (!name) {
+                promptMsg.textContent = "יש להזין שם לפלייליסט.";
+                return;
+            }
+            let pls = getPlaylists();
+            const exists = pls.some(p => p.name === name);
+            if (exists) {
+                promptMsg.textContent = "פלייליסט בשם הזה כבר קיים.";
+                return;
+            }
+            pls.push({ name, items: [] });
+            savePlaylists(pls);
+            showToast("פלייליסט חדש נוצר!");
+            promptOverlay.style.display = "none";
+
+            // select new playlist
+            selectPlaylist(name);
+        });
+
+        /***********************
+         * RENDER SIDEBAR LIST
+         ***********************/
+        function renderSidebar() {
+            const pls = getPlaylists();
+            plListEl.innerHTML = "";
+
+            if (pls.length === 0) {
+                const div = document.createElement("div");
+                div.className = "notice";
+                div.textContent = "אין פלייליסטים עדיין. צרו פלייליסט חדש.";
+                plListEl.appendChild(div);
+                selectedPlaylistName = "";
+                renderMain();
+                return;
+            }
+
+            // if no querystring playlist -> first playlist
+            if (!selectedPlaylistName) {
+                selectedPlaylistName = pls[0].name;
+                syncQuerystring();
+            } else {
+                // if querystring playlist not found -> first playlist
+                const found = pls.some(p => p.name === selectedPlaylistName);
+                if (!found) {
+                    selectedPlaylistName = pls[0].name;
+                    syncQuerystring();
+                }
+            }
+
+            pls.forEach(p => {
+                const el = document.createElement("div");
+                el.className = "plItem" + (p.name === selectedPlaylistName ? " active" : "");
+                el.title = p.name;
+
+                const nameSpan = document.createElement("span");
+                nameSpan.textContent = p.name;
+
+                const badge = document.createElement("span");
+                badge.className = "countBadge";
+                badge.textContent = (p.items || []).length;
+
+                el.appendChild(nameSpan);
+                el.appendChild(badge);
+
+                el.addEventListener("click", () => selectPlaylist(p.name));
+                plListEl.appendChild(el);
+            });
+
+            renderMain();
+        }
+
+        function syncQuerystring() {
+            const url = new URL(window.location.href);
+            if (selectedPlaylistName) {
+                url.searchParams.set("pl", selectedPlaylistName);
+            } else {
+                url.searchParams.delete("pl");
+            }
+            history.replaceState({}, "", url);
+        }
+
+        function selectPlaylist(name) {
+            selectedPlaylistName = name;
+            syncQuerystring();
+            renderSidebar(); // rerender to set active state
+        }
+
+        /***********************
+         * MAIN CONTENT: songs in selected playlist
+         * - if not selected -> show "בחר פלייליסט מהרשימה"
+         * - filter by input
+         * - sort A-Z or Z-A
+         * - delete video or delete playlist
+         ***********************/
+        function renderMain() {
+            const pls = getPlaylists();
+            const playlist = pls.find(p => p.name === selectedPlaylistName);
+
+            cardsEl.innerHTML = "";
+
+            if (!playlist) {
+                mainHint.textContent = "בחר פלייליסט מהרשימה.";
+                return;
+            }
+
+            const filterText = filterInput.value.trim().toLowerCase();
+            let items = (playlist.items || []).slice();
+
+            // internal filter by video title
+            if (filterText) {
+                items = items.filter(it => (it.title || "").toLowerCase().includes(filterText));
+            }
+
+            // sorting
+            const sortMode = sortSelect.value;
+            items.sort((a, b) => {
+                const ta = (a.title || "").toLowerCase();
+                const tb = (b.title || "").toLowerCase();
+                if (ta < tb) return sortMode === "az" ? -1 : 1;
+                if (ta > tb) return sortMode === "az" ? 1 : -1;
+                return 0;
+            });
+
+            mainHint.textContent = `נבחר: ${playlist.name} (${items.length} פריטים)`;
+
+            if (items.length === 0) {
+                cardsEl.innerHTML = `<div class="notice">אין סרטונים להצגה (אולי הפילטר מסתיר תוצאות).</div>`;
+                return;
+            }
+
+            items.forEach(it => {
+                const card = document.createElement("div");
+                card.className = "card";
+
+                const img = document.createElement("img");
+                img.className = "thumb";
+                img.src = it.thumb || "";
+                img.alt = it.title || "";
+                img.addEventListener("click", () => openVideoModal(it.title || "ניגון", it.videoId));
+                card.appendChild(img);
+
+                const body = document.createElement("div");
+                body.className = "cardBody";
+
+                const title = document.createElement("div");
+                title.className = "title";
+                title.textContent = it.title || "";
+                title.title = it.title || ""; // tooltip
+                title.addEventListener("click", () => openVideoModal(it.title || "ניגון", it.videoId));
+                body.appendChild(title);
+
+                const meta = document.createElement("div");
+                meta.className = "meta";
+                meta.innerHTML = `
+        <span><b>משתמש/ערוץ:</b> ${escapeHtml(it.channel || "")}</span>
+        <span><b>כמות צפיות:</b> ${escapeHtml(String(it.views ?? ""))}</span>
+        <span><b>ז׳אנר:</b> ${escapeHtml(it.genre || "")}</span>
+      `;
+                body.appendChild(meta);
+
+                const actions = document.createElement("div");
+                actions.className = "actions";
+
+                const removeVideoBtn = document.createElement("button");
+                removeVideoBtn.textContent = "מחיקת סרטון מהרשימה";
+                removeVideoBtn.addEventListener("click", () => {
+                    deleteVideoFromPlaylist(playlist.name, it.videoId);
+                });
+
+                const removePlaylistBtn = document.createElement("button");
+                removePlaylistBtn.textContent = "מחיקת רשימה שלמה";
+                removePlaylistBtn.addEventListener("click", () => {
+                    deletePlaylist(playlist.name);
+                });
+
+                actions.appendChild(removeVideoBtn);
+                actions.appendChild(removePlaylistBtn);
+
+                body.appendChild(actions);
+                card.appendChild(body);
+                cardsEl.appendChild(card);
+            });
+        }
+
+        function deleteVideoFromPlaylist(plName, videoId) {
+            const ok = confirm("למחוק את הסרטון מהרשימה?");
+            if (!ok) return;
+
+            let pls = getPlaylists();
+            const p = pls.find(x => x.name === plName);
+            if (!p) return;
+
+            p.items = (p.items || []).filter(it => it.videoId !== videoId);
+            savePlaylists(pls);
+            showToast("הסרטון נמחק מהרשימה");
+            renderSidebar();
+        }
+
+        function deletePlaylist(plName) {
+            const ok = confirm("למחוק את כל הרשימה?");
+            if (!ok) return;
+
+            let pls = getPlaylists();
+            pls = pls.filter(p => p.name !== plName);
+            savePlaylists(pls);
+
+            showToast("הרשימה נמחקה");
+            selectedPlaylistName = "";
+            renderSidebar();
+        }
+
+        /***********************
+         * PLAY PLAYLIST (start from first item)
+         ***********************/
+        playPlaylistBtn.addEventListener("click", () => {
+            const pls = getPlaylists();
+            const p = pls.find(x => x.name === selectedPlaylistName);
+            if (!p) {
+                alert('בחר פלייליסט מהרשימה');
+                return;
+            }
+            const first = (p.items || [])[0];
+            if (!first) {
+                alert("הפלייליסט ריק");
+                return;
+            }
+            openVideoModal(first.title || "ניגון", first.videoId);
+        });
+
+        /***********************
+         * FILTER + SORT events
+         ***********************/
+        filterInput.addEventListener("input", renderMain);
+        sortSelect.addEventListener("change", renderMain);
+
+        /***********************
+         * INIT
+         ***********************/
+        renderSidebar();
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+
+<body>
+
+    <h2>התחברות</h2>
+
+    <form id="loginForm">
+        <label>שם משתמש:</label><br>
+        <input type="text" id="username" required><br><br>
+
+        <label>סיסמה:</label><br>
+        <input type="password" id="password" required><br><br>
+
+        <button type="submit">התחבר</button>
+    </form>
+
+    <p id="message" style="color:red;"></p>
+
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value;
+
+            // Load users from LocalStorage
+            const users = JSON.parse(localStorage.getItem("users")) || [];
+
+            // Check username + password match
+            const user = users.find(
+                u => u.username === username && u.password === password
+            );
+
+            if (!user) {
+                document.getElementById("message").textContent =
+                    "שם משתמש או סיסמה שגויים";
+                return;
+            }
+
+            // Save current user in SESSION storage
+            const currentUser = {
+                username: user.username,
+                firstName: user.firstName,
+                imageUrl: user.imageUrl
+            };
+
+            sessionStorage.setItem("currentUser", JSON.stringify(currentUser));
+
+            // Redirect to SEARCH page (דרישה 4)
+            window.location.replace("search.html");
+        });
+    </script>
+
+</body>
+
+</html>

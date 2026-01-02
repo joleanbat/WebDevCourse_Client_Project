@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="he">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Search</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            padding: 14px 18px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .welcome {
+            font-weight: 700;
+        }
+
+        nav a {
+            margin-inline-start: 10px;
+            text-decoration: none;
+            color: #0b57d0;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        main {
+            padding: 18px;
+        }
+
+        .searchbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            width: min(520px, 90vw);
+        }
+
+        button {
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .hint {
+            color: #666;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .results {
+            margin-top: 18px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            background: #fff;
+        }
+
+        .thumb {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #f3f3f3;
+            display: block;
+            cursor: pointer;
+            object-fit: cover;
+        }
+
+        .card-body {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .title {
+            font-weight: 700;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.25;
+            min-height: 2.5em;
+            /* ~2 lines */
+            cursor: pointer;
+        }
+
+        .meta {
+            font-size: 13px;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .meta span {
+            color: #444;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 6px;
+        }
+
+        .favBtn {
+            width: 100%;
+        }
+
+        .favBtn.added {
+            background: #e8e8e8;
+            border: 1px solid #cfcfcf;
+        }
+
+        .checkmark {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #0f9d58;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+        }
+
+        .checkmark.show {
+            display: flex;
+        }
+
+        /* Modal */
+        .modalOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 9999;
+        }
+
+        .modal {
+            width: min(900px, 96vw);
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+        }
+
+        .modalHeader {
+            padding: 12px 14px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .modalHeader h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .closeBtn {
+            padding: 8px 10px;
+        }
+
+        .modalBody {
+            padding: 12px;
+        }
+
+        .playerWrap {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        /* Add-to-playlist modal */
+        .formRow {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        select,
+        input[type="text"].small {
+            padding: 10px;
+            width: 100%;
+        }
+
+        .twoCols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 12px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            left: 16px;
+            bottom: 16px;
+            background: #222;
+            color: #fff;
+            padding: 12px 14px;
+            border-radius: 10px;
+            display: none;
+            gap: 10px;
+            align-items: center;
+            z-index: 99999;
+            max-width: min(520px, 92vw);
+        }
+
+        .toast a {
+            color: #9ad0ff;
+        }
+
+        .toast button {
+            padding: 6px 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="left">
+            <div class="welcome" id="welcomeMsg">שלום!</div>
+            <div class="muted">דף חיפוש (search.html)</div>
+        </div>
+
+        <nav>
+            <a href="index.html">בית</a>
+            <a href="search.html">חיפוש</a>
+            <a href="playlists.html">פלייליסטים</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="searchbar">
+            <input id="q" type="text" placeholder="הקלד/י שם שיר או זמר..." />
+            <button id="searchBtn">חפש</button>
+        </div>
+        <div class="hint">
+            * הדף שומר את פרמטר החיפוש ב-QUERYSTRING (למשל: <b>?q=adele</b>) ויטען את התוצאות אוטומטית כשחוזרים לדף.
+        </div>
+
+        <div class="results" id="results"></div>
+    </main>
+
+    <!-- Video Modal -->
+    <div class="modalOverlay" id="videoOverlay">
+        <div class="modal">
+            <div class="modalHeader">
+                <h3 id="videoTitle">ניגון</h3>
+                <button class="closeBtn" id="closeVideo">סגור</button>
+            </div>
+            <div class="modalBody">
+                <div class="playerWrap">
+                    <iframe id="player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add-to-Playlist Modal -->
+    <div class="modalOverlay" id="addOverlay">
+        <div class="modal">
+            <div class="modalHeader">
+                <h3>הוספה למועדפים</h3>
+                <button class="closeBtn" id="closeAdd">סגור</button>
+            </div>
+            <div class="modalBody">
+                <div class="muted">בחר/י אחת מהאפשרויות:</div>
+
+                <div class="twoCols">
+                    <div>
+                        <div class="formRow">
+                            <label><b>אופציה 1:</b> לבחור PLAYLIST קיים (Dropdown)</label>
+                            <select id="playlistSelect"></select>
+                            <button id="addToExistingBtn">הוסף ל-Playlist קיים</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="formRow">
+                            <label><b>אופציה 2:</b> ליצור PLAYLIST חדש</label>
+                            <input class="small" id="newPlaylistName" type="text" placeholder="שם פלייליסט חדש..." />
+                            <button id="createAndAddBtn">צור פלייליסט והוסף</button>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="muted" style="margin-top:12px;">
+                    * אם הסרטון כבר נמצא באחד הפלייליסטים של המשתמש, יוצג סימון ✓ על הכרטיסייה וצבע כפתור ההוספה ישתנה.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div id="toastText">נשמר!</div>
+        <a href="playlists.html" id="toastLink">מעבר מהיר לרשימה</a>
+        <button id="toastClose">X</button>
+    </div>
+
+    <script>
+        /***********************
+         * 1) AUTH + WELCOME
+         ***********************/
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null");
+        if (!currentUser) {
+            // must be after login
+            window.location.replace("login.html");
+        }
+
+        const welcomeMsg = document.getElementById("welcomeMsg");
+        const displayName = (currentUser && (currentUser.firstName || currentUser.username)) ? (currentUser.firstName || currentUser.username) : "משתמש";
+        welcomeMsg.textContent = `שלום ${displayName}`;
+
+        /***********************
+         * 2) YOUTUBE API SETUP
+         ***********************/
+        // IMPORTANT: Put your YouTube Data API key here
+        const YT_API_KEY = "YOUR_YOUTUBE_DATA_API_KEY";
+
+        // helpers
+        const resultsEl = document.getElementById("results");
+        const qInput = document.getElementById("q");
+        const searchBtn = document.getElementById("searchBtn");
+
+        // Read querystring ?q=
+        const params = new URLSearchParams(window.location.search);
+        const initialQ = params.get("q") || "";
+        if (initialQ) qInput.value = initialQ;
+
+        /***********************
+         * 3) PLAYLIST STORAGE (LocalStorage)
+         ***********************/
+        function playlistsKey() {
+            return `playlists_${currentUser.username}`;
+        }
+
+        function getPlaylists() {
+            return JSON.parse(localStorage.getItem(playlistsKey()) || "[]");
+        }
+
+        function savePlaylists(list) {
+            localStorage.setItem(playlistsKey(), JSON.stringify(list));
+        }
+
+        function isVideoInAnyPlaylist(videoId) {
+            const pls = getPlaylists();
+            return pls.some(p => (p.items || []).some(it => it.videoId === videoId));
+        }
+
+        /***********************
+         * 4) TOAST
+         ***********************/
+        const toast = document.getElementById("toast");
+        const toastText = document.getElementById("toastText");
+        document.getElementById("toastClose").addEventListener("click", () => toast.style.display = "none");
+
+        function showToast(text) {
+            toastText.textContent = text;
+            toast.style.display = "flex";
+            setTimeout(() => { toast.style.display = "none"; }, 4500);
+        }
+
+        /***********************
+         * 5) VIDEO MODAL (NIGUN)
+         ***********************/
+        const videoOverlay = document.getElementById("videoOverlay");
+        const closeVideo = document.getElementById("closeVideo");
+        const player = document.getElementById("player");
+        const videoTitleEl = document.getElementById("videoTitle");
+
+        function openVideoModal(title, videoId) {
+            videoTitleEl.textContent = title;
+            player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            videoOverlay.style.display = "flex";
+        }
+        function closeVideoModal() {
+            player.src = "";
+            videoOverlay.style.display = "none";
+        }
+        closeVideo.addEventListener("click", closeVideoModal);
+        videoOverlay.addEventListener("click", (e) => { if (e.target === videoOverlay) closeVideoModal(); });
+
+        /***********************
+         * 6) ADD TO PLAYLIST MODAL
+         ***********************/
+        const addOverlay = document.getElementById("addOverlay");
+        const closeAdd = document.getElementById("closeAdd");
+        const playlistSelect = document.getElementById("playlistSelect");
+        const newPlaylistName = document.getElementById("newPlaylistName");
+        const addToExistingBtn = document.getElementById("addToExistingBtn");
+        const createAndAddBtn = document.getElementById("createAndAddBtn");
+
+        let pendingVideo = null; // {videoId,title,thumb,channel,views,genre}
+
+        function refreshPlaylistDropdown() {
+            const pls = getPlaylists();
+            playlistSelect.innerHTML = "";
+            if (pls.length === 0) {
+                const opt = document.createElement("option");
+                opt.value = "";
+                opt.textContent = "אין פלייליסטים קיימים";
+                playlistSelect.appendChild(opt);
+                playlistSelect.disabled = true;
+                addToExistingBtn.disabled = true;
+            } else {
+                playlistSelect.disabled = false;
+                addToExistingBtn.disabled = false;
+                pls.forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = p.name;
+                    opt.textContent = p.name;
+                    playlistSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function openAddModal(videoObj) {
+            pendingVideo = videoObj;
+            newPlaylistName.value = "";
+            refreshPlaylistDropdown();
+            addOverlay.style.display = "flex";
+        }
+        function closeAddModal() {
+            pendingVideo = null;
+            addOverlay.style.display = "none";
+        }
+        closeAdd.addEventListener("click", closeAddModal);
+        addOverlay.addEventListener("click", (e) => { if (e.target === addOverlay) closeAddModal(); });
+
+        function addVideoToPlaylistByName(name) {
+            if (!pendingVideo) return;
+
+            let pls = getPlaylists();
+            let p = pls.find(x => x.name === name);
+            if (!p) {
+                p = { name, items: [] };
+                pls.push(p);
+            }
+
+            // prevent duplicates
+            const already = (p.items || []).some(it => it.videoId === pendingVideo.videoId);
+            if (!already) {
+                p.items.push(pendingVideo);
+                savePlaylists(pls);
+                showToast("הסרטון נוסף למועדפים! (קישור מעבר מהיר לרשימה)");
+            } else {
+                showToast("הסרטון כבר נמצא בפלייליסט הזה");
+            }
+
+            closeAddModal();
+            // refresh marks on cards
+            markCards();
+        }
+
+        addToExistingBtn.addEventListener("click", () => {
+            const selected = playlistSelect.value;
+            if (!selected) {
+                showToast("אין פלייליסט קיים לבחור");
+                return;
+            }
+            addVideoToPlaylistByName(selected);
+        });
+
+        createAndAddBtn.addEventListener("click", () => {
+            const name = newPlaylistName.value.trim();
+            if (!name) {
+                showToast("יש להזין שם לפלייליסט חדש");
+                return;
+            }
+            addVideoToPlaylistByName(name);
+        });
+
+        /***********************
+         * 7) SEARCH FLOW (QUERYSTRING + API)
+         ***********************/
+        searchBtn.addEventListener("click", () => doSearch());
+        qInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+
+        async function doSearch() {
+            const q = qInput.value.trim();
+            if (!q) return;
+
+            // Save search in querystring
+            const url = new URL(window.location.href);
+            url.searchParams.set("q", q);
+            history.pushState({}, "", url);
+
+            // call YT API
+            await fetchAndRender(q);
+        }
+
+        // If coming from outside / refresh, auto-search by querystring
+        if (initialQ) {
+            fetchAndRender(initialQ);
+        }
+
+        async function fetchJSON(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("API Error");
+            return res.json();
+        }
+
+        async function fetchAndRender(query) {
+            resultsEl.innerHTML = "טוען תוצאות...";
+
+            try {
+                if (YT_API_KEY === "YOUR_YOUTUBE_DATA_API_KEY") {
+                    resultsEl.innerHTML = `
+          <div style="color:#b00020;">
+            חסר מפתח API של YouTube Data API.<br>
+            שימי את המפתח שלך במשתנה <b>YT_API_KEY</b> בתוך הקובץ.
+          </div>`;
+                    return;
+                }
+
+                // 1) search.list to get video IDs
+                const searchUrl =
+                    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${encodeURIComponent(YT_API_KEY)}`;
+
+                const searchData = await fetchJSON(searchUrl);
+                const videoIds = (searchData.items || [])
+                    .map(it => it.id && it.id.videoId)
+                    .filter(Boolean);
+
+                if (videoIds.length === 0) {
+                    resultsEl.innerHTML = "אין תוצאות.";
+                    return;
+                }
+
+                // 2) videos.list for stats + snippet + category
+                const videosUrl =
+                    `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${encodeURIComponent(videoIds.join(","))}&key=${encodeURIComponent(YT_API_KEY)}`;
+
+                const videosData = await fetchJSON(videosUrl);
+
+                // collect categoryIds
+                const categoryIds = Array.from(new Set(
+                    (videosData.items || []).map(v => v.snippet && v.snippet.categoryId).filter(Boolean)
+                ));
+
+                // 3) videoCategories.list for "genre" (category title)
+                let categoryMap = {};
+                if (categoryIds.length) {
+                    const catsUrl =
+                        `https://www.googleapis.com/youtube/v3/videoCategories?part=snippet&id=${encodeURIComponent(categoryIds.join(","))}&regionCode=US&key=${encodeURIComponent(YT_API_KEY)}`;
+                    const catsData = await fetchJSON(catsUrl);
+                    (catsData.items || []).forEach(c => {
+                        categoryMap[c.id] = c.snippet && c.snippet.title ? c.snippet.title : "";
+                    });
+                }
+
+                // render cards
+                resultsEl.innerHTML = "";
+                (videosData.items || []).forEach(v => {
+                    const videoId = v.id;
+                    const title = v.snippet.title || "";
+                    const channel = v.snippet.channelTitle || "";
+                    const thumb = (v.snippet.thumbnails && (v.snippet.thumbnails.medium || v.snippet.thumbnails.default || {}).url) || "";
+                    const views = (v.statistics && v.statistics.viewCount) ? Number(v.statistics.viewCount).toLocaleString() : "N/A";
+                    const genre = categoryMap[v.snippet.categoryId] || "N/A";
+
+                    const card = document.createElement("div");
+                    card.className = "card";
+                    card.dataset.videoId = videoId;
+
+                    const check = document.createElement("div");
+                    check.className = "checkmark";
+                    check.textContent = "✓";
+                    card.appendChild(check);
+
+                    const img = document.createElement("img");
+                    img.className = "thumb";
+                    img.src = thumb;
+                    img.alt = title;
+                    img.addEventListener("click", () => openVideoModal(title, videoId));
+                    card.appendChild(img);
+
+                    const body = document.createElement("div");
+                    body.className = "card-body";
+
+                    // Title with TOOLTIP (full name)
+                    const t = document.createElement("div");
+                    t.className = "title";
+                    t.textContent = title;
+                    t.title = title; // TOOLTIP requirement
+                    t.addEventListener("click", () => openVideoModal(title, videoId));
+                    body.appendChild(t);
+
+                    const meta = document.createElement("div");
+                    meta.className = "meta";
+                    meta.innerHTML = `
+          <span><b>משתמש/ערוץ:</b> ${escapeHtml(channel)}</span>
+          <span><b>כמות צפיות:</b> ${escapeHtml(String(views))}</span>
+          <span><b>ז׳אנר:</b> ${escapeHtml(genre)}</span>
+        `;
+                    body.appendChild(meta);
+
+                    const actions = document.createElement("div");
+                    actions.className = "actions";
+
+                    const favBtn = document.createElement("button");
+                    favBtn.className = "favBtn";
+                    favBtn.textContent = "הוספה למועדפים";
+                    favBtn.addEventListener("click", () => {
+                        // open Dialog/Modal/Prompt (we use MODAL)
+                        const videoObj = { videoId, title, thumb, channel, views, genre };
+                        openAddModal(videoObj);
+                    });
+
+                    actions.appendChild(favBtn);
+                    body.appendChild(actions);
+
+                    card.appendChild(body);
+                    resultsEl.appendChild(card);
+                });
+
+                // mark cards that already exist in ANY playlist (✓ + button color)
+                markCards();
+
+            } catch (err) {
+                resultsEl.innerHTML = `<div style="color:#b00020;">שגיאה בקריאת API / רשת. בדקי את ה-API KEY ואת ההרשאות.</div>`;
+            }
+        }
+
+        function markCards() {
+            const cards = document.querySelectorAll(".card");
+            cards.forEach(card => {
+                const vid = card.dataset.videoId;
+                const inAny = isVideoInAnyPlaylist(vid);
+                const check = card.querySelector(".checkmark");
+                const btn = card.querySelector(".favBtn");
+                if (inAny) {
+                    check.classList.add("show");
+                    btn.classList.add("added");
+                    btn.textContent = "כבר במועדפים";
+                } else {
+                    check.classList.remove("show");
+                    btn.classList.remove("added");
+                    btn.textContent = "הוספה למועדפים";
+                }
+            });
+        }
+
+        function escapeHtml(str) {
+            return str
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+    </script>
+
+</body>
+
+</html>
